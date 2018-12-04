@@ -43,22 +43,22 @@ module Spree
           rate = rate.to_f + (Spree::ActiveShipping::Config[:handling_fee].to_f || 0.0)
 
           # divide by 100 since active_shipping rates are expressed as cents
-          return rate/100.0
+          return rate / 100.0
         end
 
         def timing(line_items)
           order = line_items.first.order
           # TODO: Figure out where stock_location is supposed to come from.
-          origin= ::ActiveShipping::Location.new(country: stock_location.country.iso,
-                               city: stock_location.city,
-                               state: (stock_location.state ? stock_location.state.abbr : stock_location.state_name),
-                               zip: stock_location.zipcode)
+          origin = ::ActiveShipping::Location.new(country: stock_location.country.iso,
+                                                  city: stock_location.city,
+                                                  state: (stock_location.state ? stock_location.state.abbr : stock_location.state_name),
+                                                  zip: stock_location.zipcode)
           addr = order.ship_address
           destination = ::ActiveShipping::Location.new(country: addr.country.iso,
-                                     state: (addr.state ? addr.state.abbr : addr.state_name),
-                                     city: addr.city,
-                                     zip: addr.zipcode)
-          timings_result = Rails.cache.fetch(cache_key(package)+"-timings") do
+                                                       state: (addr.state ? addr.state.abbr : addr.state_name),
+                                                       city: addr.city,
+                                                       zip: addr.zipcode)
+          timings_result = Rails.cache.fetch(cache_key(package) + "-timings") do
             retrieve_timings(origin, destination, packages(order))
           end
           raise timings_result if timings_result.kind_of?(Spree::ShippingError)
@@ -68,12 +68,14 @@ module Spree
         end
 
         protected
+
         # weight limit in ounces or zero (if there is no limit)
         def max_weight_for_country(country)
           0
         end
 
         private
+
         # check for known limitations inside a package
         # that will limit you from shipping using a service
         def is_package_shippable? package
@@ -107,12 +109,16 @@ module Spree
           rescue ::ActiveShipping::Error => e
 
             if e.class == ::ActiveShipping::ResponseError && e.response.is_a?(::ActiveShipping::Response)
-              params = e.response.params
-              if params.has_key?("Response") && params["Response"].has_key?("Error") && params["Response"]["Error"].has_key?("ErrorDescription")
-                message = params["Response"]["Error"]["ErrorDescription"]
-              # Canada Post specific error message
-              elsif params.has_key?("eparcel") && params["eparcel"].has_key?("error") && params["eparcel"]["error"].has_key?("statusMessage")
-                message = e.response.params["eparcel"]["error"]["statusMessage"]
+              response_params = e.response.params
+              if response_params.has_key?("Response") && response_params["Response"].has_key?("Error")
+                if response_params["Response"]["Error"].is_a?(Array)
+                  message = response_params["Response"]["Error"].map{|error| error["ErrorDescription"]}.join(", ")
+                elsif response_params["Response"]["Error"].respond_to?("has_key?")
+                  message = response_params["Response"]["Error"]["ErrorDescription"]
+                end
+                # Canada Post specific error message
+              elsif response_params.has_key?("eparcel") && response_params["eparcel"].has_key?("error") && response_params["eparcel"]["error"].has_key?("statusMessage")
+                message = response_params["eparcel"]["error"]["statusMessage"]
               else
                 message = e.message
               end
@@ -136,9 +142,13 @@ module Spree
             end
           rescue ::ActiveShipping::ResponseError => re
             if re.response.is_a?(::ActiveShipping::Response)
-              params = re.response.params
-              if params.has_key?("Response") && params["Response"].has_key?("Error") && params["Response"]["Error"].has_key?("ErrorDescription")
-                message = params["Response"]["Error"]["ErrorDescription"]
+              response_params = re.response.params
+              if response_params.has_key?("Response") && response_params["Response"].has_key?("Error")
+                if response_params["Response"]["Error"].is_a?(Array)
+                  message = response_params["Response"]["Error"].map{|error| error["ErrorDescription"]}.join(", ")
+                elsif response_params["Response"]["Error"].respond_to?("has_key?")
+                  message = response_params["Response"]["Error"]["ErrorDescription"]
+                end
               else
                 message = re.message
               end
@@ -147,7 +157,7 @@ module Spree
             end
 
             error = Spree::ShippingError.new("#{I18n.t(:shipping_error)}: #{message}")
-            Rails.cache.write @cache_key+"-timings", error #write error to cache to prevent constant re-lookups
+            Rails.cache.write @cache_key + "-timings", error #write error to cache to prevent constant re-lookups
             raise error
           end
         end
@@ -165,7 +175,7 @@ module Spree
             if max_weight <= 0 || item_weight < max_weight
               item_weight
             else
-              raise Spree::ShippingError.new("#{I18n.t(:shipping_error)}: The maximum per package weight for the selected service from the selected country is #{max_weight} ounces.")  
+              raise Spree::ShippingError.new("#{I18n.t(:shipping_error)}: The maximum per package weight for the selected service from the selected country is #{max_weight} ounces.")
             end
           end
           weights.flatten.compact.sort
@@ -177,9 +187,9 @@ module Spree
           packages = []
 
           package.contents.each do |content_item|
-            variant  = content_item.variant
+            variant = content_item.variant
             quantity = content_item.quantity
-            product  = variant.product
+            product = variant.product
 
             product.product_packages.each do |product_package|
               if product_package.weight.to_f <= max_weight or max_weight == 0
@@ -251,8 +261,8 @@ module Spree
           stock_location = package.stock_location.nil? ? "" : "#{package.stock_location.id}-"
           order = package.order
           ship_address = package.order.ship_address
-          contents_hash = Digest::MD5.hexdigest(package.contents.map {|content_item| content_item.variant.id.to_s + "_" + content_item.quantity.to_s }.join("|"))
-          @cache_key = "#{stock_location}#{carrier.name}-#{order.number}-#{ship_address.country.iso}-#{fetch_best_state_from_address(ship_address)}-#{ship_address.city}-#{ship_address.zipcode}-#{contents_hash}-#{I18n.locale}".gsub(" ","")
+          contents_hash = Digest::MD5.hexdigest(package.contents.map {|content_item| content_item.variant.id.to_s + "_" + content_item.quantity.to_s}.join("|"))
+          @cache_key = "#{stock_location}#{carrier.name}-#{order.number}-#{ship_address.country.iso}-#{fetch_best_state_from_address(ship_address)}-#{ship_address.city}-#{ship_address.zipcode}-#{contents_hash}-#{I18n.locale}".gsub(" ", "")
         end
 
         def fetch_best_state_from_address address
@@ -261,9 +271,9 @@ module Spree
 
         def build_location address
           ::ActiveShipping::Location.new(country: address.country.iso,
-                       state: fetch_best_state_from_address(address),
-                       city: address.city,
-                       zip: address.zipcode)
+                                         state: fetch_best_state_from_address(address),
+                                         city: address.city,
+                                         zip: address.zipcode)
         end
 
         def retrieve_rates_from_cache package, origin, destination
