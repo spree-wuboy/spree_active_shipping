@@ -18,7 +18,7 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
 
   s.add_dependency 'spree_core'
-  s.add_dependency 'active_shipping', '~> 2.1.1'
+  s.add_dependency 'active_shipping'
   s.add_dependency 'spree_extension'
 
   s.add_development_dependency 'pry'
