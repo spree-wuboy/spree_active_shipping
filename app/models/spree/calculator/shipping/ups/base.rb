@@ -9,7 +9,8 @@ module Spree
             client_id: Spree::ActiveShipping::Config[:ups_client_id],
             client_secret: Spree::ActiveShipping::Config[:ups_client_secret],
             test: Spree::ActiveShipping::Config[:test_mode],
-            pickup_type: :customer_counter
+            pickup_type: :daily_pickup,
+            customer_classification: :zero_zero
           }
 
           if shipper_number = Spree::ActiveShipping::Config[:shipper_number]

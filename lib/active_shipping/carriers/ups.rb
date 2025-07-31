@@ -31,6 +31,7 @@ module ActiveShipping
     )
 
     CUSTOMER_CLASSIFICATIONS = HashWithIndifferentAccess.new(
+      :zero_zero => "00",
       :wholesale => "01",
       :occasional => "03",
       :retail => "04"
@@ -301,6 +302,10 @@ module ActiveShipping
           end
 
           xml.Shipment do
+            xml.ShipmentRatingOptions do
+              xml.NegotiatedRatesIndicator('Y')
+              xml.TPFCNegotiatedRatesIndicator('Y')
+            end
             # not implemented: Shipment/Description element
             build_location_node(xml, 'Shipper', (options[:shipper] || origin), options)
             build_location_node(xml, 'ShipTo', destination, options)
@@ -1316,7 +1321,8 @@ module ActiveShipping
           accept: 'application/json'
         },
         user: Spree::ActiveShipping::Config[:ups_client_id],
-        password: Spree::ActiveShipping::Config[:ups_client_secret]
+        password: Spree::ActiveShipping::Config[:ups_client_secret],
+        verify_ssl: OpenSSL::SSL::VERIFY_NONE
       )
 
       body = JSON.parse(response.body)
